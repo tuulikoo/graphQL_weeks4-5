@@ -5,7 +5,6 @@ import {UserTest} from '../src/interfaces/User';
 import ErrorResponse from '../src/interfaces/ErrorResponse';
 import randomstring from 'randomstring';
 import LoginMessageResponse from '../src/interfaces/LoginMessageResponse';
-import {resolve} from 'path';
 
 // get user from graphql query users
 const getUser = (url: string | Function): Promise<UserTest[]> => {

@@ -122,7 +122,7 @@ describe('Testing graphql api', () => {
 
   // test cat upload
   let uploadData1: UploadMessageResponse;
-  let catData1: any;
+  let catData1: CatTest;
   it('should upload a cat', async () => {
     uploadData1 = await postFile(uploadApp, userData.token!);
     catData1 = {
