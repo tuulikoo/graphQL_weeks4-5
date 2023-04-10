@@ -386,7 +386,7 @@ const userDeleteCat = (
   url: string | Function,
   id: string,
   token: string
-): Promise<any> => {
+): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -418,7 +418,7 @@ const adminDeleteCat = (
   url: string | Function,
   id: string,
   token: string
-): Promise<any> => {
+): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -450,7 +450,7 @@ const wrongUserDeleteCat = (
   url: string | Function,
   id: string,
   token: string
-): Promise<any> => {
+): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
