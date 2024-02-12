@@ -31,7 +31,7 @@ Make sure that the admin user is created in the database. The admin user should 
 
 ### Database
 
-- DB schemas are the same as last week
+- DB schemas are the same (or at least similar) as last week
 
 # Important
 
