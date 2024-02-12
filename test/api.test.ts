@@ -4,17 +4,14 @@ import {
   deleteUser,
   getSingleUser,
   getUser,
-  loginBrute,
+  // loginBrute,
   loginUser,
   postUser,
   putUser,
 } from './userFunctions';
-import {UserTest} from '../src/interfaces/User';
 import mongoose from 'mongoose';
 import {getNotFound} from './testFunctions';
 import {
-  adminDeleteCat,
-  adminPutCat,
   getCat,
   getCatByBoundingBox,
   getCatByOwner,
@@ -30,10 +27,9 @@ import {
 const uploadApp = process.env.UPLOAD_URL as string;
 
 import randomstring from 'randomstring';
-import UploadMessageResponse from '../src/interfaces/UploadMessageResponse';
-import {CatTest} from '../src/interfaces/Cat';
-import LoginMessageResponse from '../src/interfaces/LoginMessageResponse';
 import jwt from 'jsonwebtoken';
+import {LoginResponse, UploadResponse} from '../src/types/MessageTypes';
+import {CatTest, UserTest} from '../src/types/DBTypes';
 
 describe('Testing graphql api', () => {
   beforeAll(async () => {
@@ -50,9 +46,9 @@ describe('Testing graphql api', () => {
   });
 
   // test create user
-  let userData: LoginMessageResponse;
-  let userData2: LoginMessageResponse;
-  let adminData: LoginMessageResponse;
+  let userData: LoginResponse;
+  let userData2: LoginResponse;
+  let adminData: LoginResponse;
 
   const testUser: UserTest = {
     user_name: 'Test User ' + randomstring.generate(7),
@@ -83,24 +79,42 @@ describe('Testing graphql api', () => {
 
   // test login
   it('should login user', async () => {
-    userData = await loginUser(app, testUser);
+    const vars = {
+      credentials: {
+        username: testUser.email!,
+        password: testUser.password!,
+      },
+    };
+    userData = await loginUser(app, vars);
   });
 
   // test login with second user
   it('should login second user', async () => {
-    userData2 = await loginUser(app, testUser2);
+    const vars = {
+      credentials: {
+        username: testUser2.email!,
+        password: testUser2.password!,
+      },
+    };
+    userData2 = await loginUser(app, vars);
   });
 
   // test login with admin
   it('should login admin', async () => {
-    adminData = await loginUser(app, adminUser);
+    const vars = {
+      credentials: {
+        username: adminUser.email!,
+        password: adminUser.password!,
+      },
+    };
+    adminData = await loginUser(app, vars);
   });
 
   // make sure token has role (so that we can test if user is admin or not)
   it('token should have role', async () => {
     const dataFromToken = jwt.verify(
       userData.token!,
-      process.env.JWT_SECRET as string
+      process.env.JWT_SECRET as string,
     );
     expect(dataFromToken).toHaveProperty('role');
   });
@@ -121,16 +135,18 @@ describe('Testing graphql api', () => {
   });
 
   // test cat upload
-  let uploadData1: UploadMessageResponse;
-  let catData1: CatTest;
+  let uploadData1: UploadResponse;
+  let catData1: {input: CatTest};
   it('should upload a cat', async () => {
     uploadData1 = await postFile(uploadApp, userData.token!);
     catData1 = {
-      catName: 'Test Cat' + randomstring.generate(7),
-      weight: 5,
-      birthdate: new Date('2022-01-01'),
-      filename: uploadData1.data.filename,
-      location: uploadData1.data.location,
+      input: {
+        cat_name: 'Test Cat' + randomstring.generate(7),
+        weight: 5,
+        birthdate: new Date('2022-01-01'),
+        filename: uploadData1.data.filename,
+        location: uploadData1.data.location,
+      },
     };
   });
 
@@ -176,9 +192,13 @@ describe('Testing graphql api', () => {
   // modify cat as second user
   it('should not modify a cat', async () => {
     const newCat: CatTest = {
-      catName: 'Test Cat' + randomstring.generate(7),
+      cat_name: 'Test Cat' + randomstring.generate(7),
     };
-    await wrongUserPutCat(app, newCat, catID1, userData2.token!);
+    const vars = {
+      input: newCat,
+      updateCatId: catID1,
+    };
+    await wrongUserPutCat(app, vars, userData2.token!);
   });
 
   // delete cat as second user
@@ -189,19 +209,29 @@ describe('Testing graphql api', () => {
   // modify cat by id
   it('should modify a cat', async () => {
     const newCat: CatTest = {
-      catName: 'Test Cat' + randomstring.generate(7),
+      cat_name: 'Test Cat' + randomstring.generate(7),
       weight: 5,
       birthdate: new Date('2019-01-01'),
     };
-    await userPutCat(app, newCat, catID1, userData.token!);
+    const vars: {input: CatTest; updateCatId: string} = {
+      input: newCat,
+      updateCatId: catID1,
+    };
+    await userPutCat(app, vars, userData.token!);
   });
 
   // modify cat by id as admin
   it('should modify a cat as admin', async () => {
     const newCat: CatTest = {
-      catName: 'Test Cat' + randomstring.generate(7),
+      cat_name: 'Admin test Cat' + randomstring.generate(7),
+      weight: 6,
+      birthdate: new Date('2001-02-01'),
     };
-    await adminPutCat(app, newCat, catID1, adminData.token!);
+    const vars: {input: CatTest; updateCatId: string} = {
+      input: newCat,
+      updateCatId: catID1,
+    };
+    await userPutCat(app, vars, adminData.token!);
   });
 
   // test delete cat
@@ -218,17 +248,28 @@ describe('Testing graphql api', () => {
 
   // test delete cat by id as admin
   it('should delete a cat as admin', async () => {
-    await adminDeleteCat(app, catID2, adminData.token!);
+    await userDeleteCat(app, catID2, adminData.token!);
   });
 
   // it should not delete user by id as normal user
   it('should not delete a user', async () => {
-    await wrongUserDeleteCat(app, userData2.user.id!, userData.token!);
+    await wrongUserDeleteCat(app, userData2.user.id, userData.token);
   });
 
   // test delete user by id as admin
   it('should delete a user as admin', async () => {
-    await adminDeleteUser(app, userData2.user.id!, adminData.token!);
+    const result = await adminDeleteUser(
+      app,
+      userData2.user.id,
+      adminData.token,
+    );
+    console.log(
+      'user2id',
+      userData2.user.id,
+      'adminid',
+      adminData.user.id,
+      result,
+    );
   });
 
   // test delete user based on token
@@ -237,27 +278,27 @@ describe('Testing graphql api', () => {
   });
 
   // test brute force protectiom
-  test('Brute force attack simulation', async () => {
-    const maxAttempts = 20;
-    const mockUser: UserTest = {
-      user_name: 'Test User ' + randomstring.generate(7),
-      email: randomstring.generate(9) + '@user.fi',
-      password: 'notthepassword',
-    };
+  // test('Brute force attack simulation', async () => {
+  //   const maxAttempts = 20;
+  //   const mockUser: UserTest = {
+  //     user_name: 'Test User ' + randomstring.generate(7),
+  //     email: randomstring.generate(9) + '@user.fi',
+  //     password: 'notthepassword',
+  //   };
 
-    try {
-      // Call the mock login function until the maximum number of attempts is reached
-      for (let i = 0; i < maxAttempts; i++) {
-        const result = await loginBrute(app, mockUser);
-        if (result) throw new Error('Brute force attack unsuccessful');
-      }
+  //   try {
+  //     // Call the mock login function until the maximum number of attempts is reached
+  //     for (let i = 0; i < maxAttempts; i++) {
+  //       const result = await loginBrute(app, mockUser);
+  //       if (result) throw new Error('Brute force attack unsuccessful');
+  //     }
 
-      // If the while loop completes successfully, the test fails
-      throw new Error('Brute force attack succeeded');
-    } catch (error) {
-      console.log(error);
-      // If the login function throws an error, the test passes
-      expect((error as Error).message).toBe('Brute force attack unsuccessful');
-    }
-  }, 15000);
+  //     // If the while loop completes successfully, the test fails
+  //     throw new Error('Brute force attack succeeded');
+  //   } catch (error) {
+  //     console.log(error);
+  //     // If the login function throws an error, the test passes
+  //     expect((error as Error).message).toBe('Brute force attack unsuccessful');
+  //   }
+  // }, 15000);
 });

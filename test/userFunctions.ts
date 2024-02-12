@@ -1,13 +1,12 @@
 /* eslint-disable node/no-unpublished-import */
 import request from 'supertest';
-import expect from 'expect';
-import {UserTest} from '../src/interfaces/User';
-import ErrorResponse from '../src/interfaces/ErrorResponse';
 import randomstring from 'randomstring';
-import LoginMessageResponse from '../src/interfaces/LoginMessageResponse';
+import {UserTest} from '../src/types/DBTypes';
+import {Application} from 'express';
+import {LoginResponse, UserResponse} from '../src/types/MessageTypes';
 
 // get user from graphql query users
-const getUser = (url: string | Function): Promise<UserTest[]> => {
+const getUser = (url: string | Application): Promise<UserTest[]> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -40,8 +39,8 @@ query UserById($userByIdId: ID!) {
 }
 */
 const getSingleUser = (
-  url: string | Function,
-  id: string
+  url: string | Application,
+  id: string,
 ): Promise<UserTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -86,8 +85,8 @@ mutation Mutation($user: UserInput!) {
 }
 */
 const postUser = (
-  url: string | Function,
-  user: UserTest
+  url: string | Application,
+  user: UserTest,
 ): Promise<UserTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -143,9 +142,9 @@ mutation Login($credentials: Credentials!) {
 */
 
 const loginUser = (
-  url: string | Function,
-  user: UserTest
-): Promise<LoginMessageResponse> => {
+  url: string | Application,
+  vars: {credentials: {username: string; password: string}},
+): Promise<LoginResponse> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -153,33 +152,29 @@ const loginUser = (
       .send({
         query: `mutation Login($credentials: Credentials!) {
           login(credentials: $credentials) {
-            message
             token
+            message
             user {
               email
-              id
               user_name
+              id
             }
           }
         }`,
-        variables: {
-          credentials: {
-            username: user.email,
-            password: user.password,
-          },
-        },
+        variables: vars,
       })
       .expect(200, (err, response) => {
         if (err) {
           reject(err);
         } else {
+          const user = vars.credentials;
           console.log('login response', response.body);
           const userData = response.body.data.login;
           expect(userData).toHaveProperty('message');
           expect(userData).toHaveProperty('token');
           expect(userData).toHaveProperty('user');
           expect(userData.user).toHaveProperty('id');
-          expect(userData.user.email).toBe(user.email);
+          expect(userData.user.email).toBe(user.username);
           resolve(response.body.data.login);
         }
       });
@@ -187,8 +182,8 @@ const loginUser = (
 };
 
 const loginBrute = (
-  url: string | Function,
-  user: UserTest
+  url: string | Application,
+  user: UserTest,
 ): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -244,7 +239,7 @@ mutation UpdateUser($user: UserModify!) {
   }
 }
 */
-const putUser = (url: string | Function, token: string) => {
+const putUser = (url: string | Application, token: string) => {
   return new Promise((resolve, reject) => {
     const newValue = 'Test Loser ' + randomstring.generate(7);
     request(url)
@@ -297,9 +292,9 @@ mutation DeleteUser {
 */
 
 const deleteUser = (
-  url: string | Function,
-  token: string
-): Promise<ErrorResponse> => {
+  url: string | Application,
+  token: string,
+): Promise<UserResponse> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -323,17 +318,17 @@ const deleteUser = (
           const userData = response.body.data.deleteUser;
           expect(userData).toHaveProperty('message');
           expect(userData).toHaveProperty('user');
-          resolve(response.body.data.deleteUser);
+          resolve(userData);
         }
       });
   });
 };
 
 const adminDeleteUser = (
-  url: string | Function,
+  url: string | Application,
   id: string,
-  token: string
-): Promise<ErrorResponse> => {
+  token: string,
+): Promise<UserResponse> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -356,17 +351,18 @@ const adminDeleteUser = (
         } else {
           const userData = response.body.data.deleteUserAsAdmin;
           expect(userData.user.id).toBe(id);
-          resolve(response.body.data.deleteUser);
+          console.log('delete user as admin', userData);
+          resolve(userData);
         }
       });
   });
 };
 
 const wrongUserDeleteUser = (
-  url: string | Function,
+  url: string | Application,
   id: string,
-  token: string
-): Promise<ErrorResponse> => {
+  token: string,
+): Promise<UserResponse> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')

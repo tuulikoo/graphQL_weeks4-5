@@ -4,8 +4,13 @@ type User {
   email: String!
 }
 
-type TokenMessage {
+type LoginResponse {
   token: String
+  message: String!
+  user: User!
+}
+
+type UserResponse {
   message: String!
   user: User!
 }
@@ -30,14 +35,20 @@ input UserModify {
 type Query {
   users: [User]
   userById(id: ID!): User
-  checkToken: TokenMessage
+  checkToken: UserResponse
 }
 
 type Mutation {
-  login(credentials: Credentials!): TokenMessage
-  register(user: UserInput!): TokenMessage
-  updateUser(user: UserModify!): TokenMessage
-  deleteUser: TokenMessage
-  updateUserAsAdmin(user: UserModify!, id: ID!): TokenMessage
-  deleteUserAsAdmin(id: ID!): TokenMessage
+  login(credentials: Credentials!): LoginResponse
+  register(user: UserInput!): UserResponse
+  updateUser(user: UserModify!): UserResponse
+  deleteUser: UserResponse
+  """
+  Separate mutations for admin because of rest api
+  """
+  updateUserAsAdmin(user: UserModify!, id: ID!): UserResponse
+  """
+  Separate mutations for admin because of rest api
+  """
+  deleteUserAsAdmin(id: ID!): UserResponse
 }

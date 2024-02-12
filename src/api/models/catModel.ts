@@ -2,7 +2,7 @@
 // intface User is located in src/interfaces/Cat.ts
 
 import mongoose from 'mongoose';
-import {Cat} from '../../interfaces/Cat';
+import {Cat} from '../../types/DBTypes';
 
 const catModel = new mongoose.Schema<Cat>({
   cat_name: {

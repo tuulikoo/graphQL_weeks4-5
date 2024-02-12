@@ -1,7 +1,8 @@
-// eslint-disable-next-line node/no-unpublished-import
+/* eslint-disable node/no-unpublished-import */
+import {Application} from 'express';
 import request from 'supertest';
 
-const getNotFound = (url: string | Function) => {
+const getNotFound = (url: string | Application) => {
   return new Promise((resolve, reject) => {
     request(url)
       .get('/what-is-this')

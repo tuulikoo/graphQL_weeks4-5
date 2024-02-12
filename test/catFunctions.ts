@@ -1,10 +1,8 @@
 /* eslint-disable node/no-unpublished-import */
 import request from 'supertest';
-import expect from 'expect';
-import {CatTest} from '../src/interfaces/Cat';
-import UploadMessageResponse from '../src/interfaces/UploadMessageResponse';
-import {UserTest} from '../src/interfaces/User';
-import {locationInput} from '../src/interfaces/Location';
+import {UploadResponse} from '../src/types/MessageTypes';
+import {Application} from 'express';
+import {CatTest, LocationInput, UserTest} from '../src/types/DBTypes';
 require('dotenv').config();
 
 // add test for graphql query
@@ -18,8 +16,8 @@ require('dotenv').config();
     location: geoJSON point,
   },
 }
-mutation CreateCat($catName: String!, $weight: Float!, $birthdate: DateTime!, $owner: ID!, $location: LocationInput!, $filename: String!) {
-  createCat(cat_name: $catName, weight: $weight, birthdate: $birthdate, owner: $owner, location: $location, filename: $filename) {
+mutation CreateCat($cat_name: String!, $weight: Float!, $birthdate: DateTime!, $owner: ID!, $location: LocationInput!, $filename: String!) {
+  createCat(cat_name: $cat_name, weight: $weight, birthdate: $birthdate, owner: $owner, location: $location, filename: $filename) {
     id
     cat_name
     weight
@@ -37,9 +35,9 @@ mutation CreateCat($catName: String!, $weight: Float!, $birthdate: DateTime!, $o
 */
 
 const postFile = (
-  url: string | Function,
-  token: string
-): Promise<UploadMessageResponse> => {
+  url: string | Application,
+  token: string,
+): Promise<UploadResponse> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/upload')
@@ -55,7 +53,7 @@ const postFile = (
           expect(uploadMessageResponse.data).toHaveProperty('filename');
           expect(uploadMessageResponse.data).toHaveProperty('location');
           expect(uploadMessageResponse.data.location).toHaveProperty(
-            'coordinates'
+            'coordinates',
           );
           expect(uploadMessageResponse.data.location).toHaveProperty('type');
           resolve(uploadMessageResponse);
@@ -65,9 +63,9 @@ const postFile = (
 };
 
 const postCat = (
-  url: string | Function,
-  cat: CatTest,
-  token: string
+  url: string | Application,
+  vars: {input: CatTest},
+  token: string,
 ): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -75,31 +73,34 @@ const postCat = (
       .set('Content-type', 'application/json')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        query: `mutation CreateCat($catName: String!, $weight: Float!, $birthdate: DateTime!, $location: LocationInput!, $filename: String!) {
-          createCat(cat_name: $catName, weight: $weight, birthdate: $birthdate, location: $location, filename: $filename) {
-            id
-            cat_name
-            weight
+        query: `mutation CreateCat($input: CatInput!) {
+          createCat(input: $input) {
             birthdate
+            cat_name
+            filename
+            weight
             owner {
+              email
               user_name
+              id
             }
+            id
             location {
               coordinates
               type
             }
-            filename
           }
         }`,
-        variables: cat,
+        variables: vars,
       })
       .expect(200, (err, response) => {
         if (err) {
           reject(err);
         } else {
-          const newCat = response.body.data.createCat;
+          const cat = vars.input;
+          const newCat: CatTest = response.body.data.createCat;
           expect(newCat).toHaveProperty('id');
-          expect(newCat.cat_name).toBe(cat.catName);
+          expect(newCat.cat_name).toBe(cat.cat_name);
           expect(newCat.weight).toBe(cat.weight);
           expect(newCat).toHaveProperty('birthdate');
           expect(newCat.owner).toHaveProperty('user_name');
@@ -134,7 +135,7 @@ query Query {
 }
 */
 
-const getCat = (url: string | Function): Promise<CatTest[]> => {
+const getCat = (url: string | Application): Promise<CatTest[]> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -205,7 +206,10 @@ query CatById($catByIdId: ID!) {
 }
 */
 
-const getSingleCat = (url: string | Function, id: string): Promise<CatTest> => {
+const getSingleCat = (
+  url: string | Application,
+  id: string,
+): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')
@@ -256,8 +260,8 @@ const getSingleCat = (url: string | Function, id: string): Promise<CatTest> => {
 
 // add test for graphql query
 /*
-mutation UpdateCat($updateCatId: ID!, $catName: String, $weight: Float, $birthdate: DateTime) {
-  updateCat(id: $updateCatId, cat_name: $catName, weight: $weight, birthdate: $birthdate) {
+mutation UpdateCat($updateCatId: ID!, $cat_name: String, $weight: Float, $birthdate: DateTime) {
+  updateCat(id: $updateCatId, cat_name: $cat_name, weight: $weight, birthdate: $birthdate) {
     birthdate
     cat_name
     weight
@@ -266,10 +270,9 @@ mutation UpdateCat($updateCatId: ID!, $catName: String, $weight: Float, $birthda
 */
 
 const userPutCat = (
-  url: string | Function,
-  cat: CatTest,
-  id: string,
-  token: string
+  url: string | Application,
+  vars: {input: CatTest; updateCatId: string},
+  token: string,
 ): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -277,24 +280,22 @@ const userPutCat = (
       .set('Content-type', 'application/json')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        query: `mutation UpdateCat($updateCatId: ID!, $catName: String, $weight: Float, $birthdate: DateTime) { 
-          updateCat(id: $updateCatId, cat_name: $catName, weight: $weight, birthdate: $birthdate) {
-            birthdate
+        query: `mutation UpdateCat($updateCatId: ID!, $input: CatModify!) {
+          updateCat(id: $updateCatId, input: $input) {
             cat_name
+            birthdate
             weight
           }
         }`,
-        variables: {
-          ...cat,
-          updateCatId: id,
-        },
+        variables: vars,
       })
       .expect(200, (err, response) => {
         if (err) {
           reject(err);
         } else {
+          const cat = vars.input;
           const updatedCat = response.body.data.updateCat;
-          expect(updatedCat.cat_name).toBe(cat.catName);
+          expect(updatedCat.cat_name).toBe(cat.cat_name);
           expect(updatedCat.weight).toBe(cat.weight);
           expect(updatedCat).toHaveProperty('birthdate');
           resolve(updatedCat);
@@ -304,10 +305,9 @@ const userPutCat = (
 };
 
 const wrongUserPutCat = (
-  url: string | Function,
-  cat: CatTest,
-  id: string,
-  token: string
+  url: string | Application,
+  vars: {input: CatTest; updateCatId: string},
+  token: string,
 ): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -315,17 +315,14 @@ const wrongUserPutCat = (
       .set('Content-type', 'application/json')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        query: `mutation UpdateCat($updateCatId: ID!, $catName: String, $weight: Float, $birthdate: DateTime) { 
-          updateCat(id: $updateCatId, cat_name: $catName, weight: $weight, birthdate: $birthdate) {
-            birthdate
+        query: `mutation UpdateCat($updateCatId: ID!, $input: CatModify!) {
+          updateCat(id: $updateCatId, input: $input) {
             cat_name
+            birthdate
             weight
           }
         }`,
-        variables: {
-          ...cat,
-          updateCatId: id,
-        },
+        variables: vars,
       })
       .expect(200, (err, response) => {
         if (err) {
@@ -333,40 +330,6 @@ const wrongUserPutCat = (
         } else {
           const updatedCat = response.body.data.updateCat;
           expect(updatedCat).toBe(null);
-          resolve(updatedCat);
-        }
-      });
-  });
-};
-
-const adminPutCat = (
-  url: string | Function,
-  cat: CatTest,
-  id: string,
-  token: string
-): Promise<CatTest> => {
-  return new Promise((resolve, reject) => {
-    request(url)
-      .post('/graphql')
-      .set('Content-type', 'application/json')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        query: `mutation UpdateCatAsAdmin($updateCatAsAdminId: ID!, $catName: String) {
-          updateCatAsAdmin(id: $updateCatAsAdminId, cat_name: $catName) {
-            cat_name
-          }
-        }`,
-        variables: {
-          catName: cat.catName,
-          updateCatAsAdminId: id,
-        },
-      })
-      .expect(200, (err, response) => {
-        if (err) {
-          reject(err);
-        } else {
-          const updatedCat = response.body.data.updateCatAsAdmin;
-          expect(updatedCat.cat_name).toBe(cat.catName);
           resolve(updatedCat);
         }
       });
@@ -383,9 +346,9 @@ mutation DeleteCat($deleteCatId: ID!) {
 */
 
 const userDeleteCat = (
-  url: string | Function,
+  url: string | Application,
   id: string,
-  token: string
+  token: string,
 ): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -414,42 +377,10 @@ const userDeleteCat = (
   });
 };
 
-const adminDeleteCat = (
-  url: string | Function,
-  id: string,
-  token: string
-): Promise<CatTest> => {
-  return new Promise((resolve, reject) => {
-    request(url)
-      .post('/graphql')
-      .set('Content-type', 'application/json')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        query: `mutation DeleteCatAsAdmin($deleteCatAsAdminId: ID!) {
-          deleteCatAsAdmin(id: $deleteCatAsAdminId) {
-            id
-          }
-        }`,
-        variables: {
-          deleteCatAsAdminId: id,
-        },
-      })
-      .expect(200, (err, response) => {
-        if (err) {
-          reject(err);
-        } else {
-          const deletedCat = response.body.data.deleteCatAsAdmin;
-          expect(deletedCat.id).toBe(id);
-          resolve(deletedCat);
-        }
-      });
-  });
-};
-
 const wrongUserDeleteCat = (
-  url: string | Function,
+  url: string | Application,
   id: string,
-  token: string
+  token: string,
 ): Promise<CatTest> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -501,8 +432,8 @@ query CatsByOwner($ownerId: ID!) {
 */
 
 const getCatByOwner = (
-  url: string | Function,
-  id: string
+  url: string | Application,
+  id: string,
 ): Promise<CatTest[]> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -569,8 +500,8 @@ query CatsByArea($topRight: Coordinates!, $bottomLeft: Coordinates!) {
 */
 
 const getCatByBoundingBox = (
-  url: string | Function,
-  location: locationInput
+  url: string | Application,
+  location: LocationInput,
 ): Promise<CatTest[]> => {
   return new Promise((resolve, reject) => {
     request(url)
@@ -614,8 +545,6 @@ export {
   userDeleteCat,
   wrongUserDeleteCat,
   wrongUserPutCat,
-  adminDeleteCat,
-  adminPutCat,
   getCatByOwner,
   getCatByBoundingBox,
 };
