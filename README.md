@@ -25,7 +25,7 @@ Add authentication and brute force prevention to last weeks assignment.
 Make sure that the admin user is created in the database. The admin user should have the following credentials:
   ```text
   email: admin@metropolia.fi
-  password: 12345
+  password: 12345 (crypted with bcrypt)
   username: admin
   ```
 
