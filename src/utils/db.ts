@@ -1,7 +1,9 @@
-//module is in strict mode by default ;)
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-dotenv.config();
+
+dotenv.config({path: __dirname + '/../.env'}); // Adjust the path based on your project structure
+
+console.log('DB_URL:', process.env.DATABASE_URL);
 
 const mongoConnect = async () => {
   const connection = await mongoose.connect(process.env.DATABASE_URL as string);

@@ -39,6 +39,7 @@ const postFile = (
   token: string,
 ): Promise<UploadResponse> => {
   return new Promise((resolve, reject) => {
+    //console.log('Ollaan upload filessä');
     request(url)
       .post('/upload')
       .set('Authorization', `Bearer ${token}`)
@@ -67,6 +68,7 @@ const postCat = (
   vars: {input: CatTest},
   token: string,
 ): Promise<CatTest> => {
+  //console.log('Ollaan cat postissa');
   return new Promise((resolve, reject) => {
     request(url)
       .post('/graphql')

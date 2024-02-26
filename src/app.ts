@@ -18,7 +18,8 @@ import authenticate from './functions/authenticate';
 import {makeExecutableSchema} from '@graphql-tools/schema';
 import {applyMiddleware} from 'graphql-middleware';
 import {MyContext} from './types/MyContext';
-import {GraphQLError} from 'graphql';
+import {MessageResponse} from './types/MessageTypes';
+import {Request, Response} from 'express';
 
 const app = express();
 
@@ -31,6 +32,9 @@ app.use(
 
 (async () => {
   try {
+    app.get('/', (_req: Request, res: Response<MessageResponse>) => {
+      res.send({message: 'Server is running'});
+    });
     // TODO Create a rate limit rule instance (not WSK2 course)
 
     // TODO Create a permissions object (not WSK2 course)

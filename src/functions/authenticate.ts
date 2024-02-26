@@ -31,7 +31,7 @@ export default async (req: Request): Promise<MyContext> => {
         user: userFromToken,
       };
 
-      // console.log('user from token', userdata);
+      console.log('user from token', tokenContent.user);
       return {userdata: tokenContent};
     } catch (error) {
       return {};
