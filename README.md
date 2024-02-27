@@ -36,3 +36,6 @@ Make sure that the admin user is created in the database. The admin user should 
 # Important
 
 - Always empty your cats and users after tests. However don't delete the admin user. It's used in the tests.
+
+# Testrun
+![Image of testrun results](<Screenshot 2024-02-27 at 13.07.16.png>)
